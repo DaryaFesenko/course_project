@@ -5,19 +5,18 @@ import (
 	//"course_project/parsing"
 )
 
-func main() {
+const p = "papapa"
 
+func main() {
 	t := new(string)
-	*t = "papapa"
+	*t = p
 
 	y := new(string)
-	*y = "papapa"
-	var a, b *string
-	a = t
-	b = y
+	*y = p
+	a := t
+	b := y
 
 	if *a != *b {
-
 		fmt.Println(*a, *b)
 	}
 	/*

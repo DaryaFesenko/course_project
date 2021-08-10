@@ -54,6 +54,7 @@ func lexOperation(source string, ic cursor) (*token, cursor, bool) {
 	case '\n':
 		cur.loc.line++
 		cur.loc.col = 0
+
 		fallthrough
 	case '\t':
 		fallthrough
@@ -68,7 +69,7 @@ func lexOperation(source string, ic cursor) (*token, cursor, bool) {
 		lessOperation,
 	}
 
-	var options []string
+	options := make([]string, len(operations))
 	for _, o := range operations {
 		options = append(options, string(o))
 	}
@@ -111,6 +112,7 @@ func lexNumeric(source string, ic cursor) (*token, cursor, bool) {
 			}
 
 			periodFound = isPeriod
+
 			continue
 		}
 
@@ -120,6 +122,7 @@ func lexNumeric(source string, ic cursor) (*token, cursor, bool) {
 			}
 
 			periodFound = true
+
 			continue
 		}
 
@@ -186,16 +189,17 @@ func lexCharacterDelimited(source string, ic cursor, delimiter byte) (*token, cu
 			// SQL escapes are via double characters, not backslash.
 			if cur.pointer+1 >= uint(len(source)) || source[cur.pointer+1] != delimiter {
 				cur.pointer++
+
 				return &token{
 					value: string(value),
 					loc:   ic.loc,
 					kind:  stringKind,
 				}, cur, true
-			} else {
-				value = append(value, delimiter)
-				cur.pointer++
-				cur.loc.col++
 			}
+			value = append(value, delimiter)
+
+			cur.pointer++
+			cur.loc.col++
 		}
 
 		value = append(value, c)
@@ -234,7 +238,7 @@ func lexSymbol(source string, ic cursor) (*token, cursor, bool) {
 		semicolonSymbol,
 	}
 
-	var options []string
+	options := make([]string, len(symbols))
 	for _, s := range symbols {
 		options = append(options, string(s))
 	}
@@ -266,7 +270,7 @@ func lexKeyword(source string, ic cursor) (*token, cursor, bool) {
 		orKeyword,
 	}
 
-	var options []string
+	options := make([]string, len(keywords))
 	for _, k := range keywords {
 		options = append(options, string(k))
 	}
@@ -294,7 +298,6 @@ func longestMatch(source string, ic cursor, options []string) string {
 	cur := ic
 
 	for cur.pointer < uint(len(source)) {
-
 		value = append(value, strings.ToLower(string(source[cur.pointer]))...)
 		cur.pointer++
 

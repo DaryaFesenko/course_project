@@ -166,7 +166,7 @@ outer:
 					} else if i == 1 {
 						conditions.operation = *t
 						i++
-					} else if i == 2 {
+					} else {
 						conditions.value = *t
 
 						where = append(where, conditions)
@@ -174,7 +174,6 @@ outer:
 						cursor = newCursor
 						continue
 					}
-
 				}
 				cursor = newCursor
 			}
@@ -248,7 +247,7 @@ func Parse(source string) (*SelectStatement, error) {
 	}
 
 	cursor := uint(0)
-	stmt, newCursor, ok := parseSelect(tokens, cursor, tokenFromSymbol(semicolonSymbol))
+	stmt, newCursor, ok := parseSelect(tokens, cursor)
 	if !ok {
 		helpMessage(tokens, cursor, "Expected statement")
 		return nil, errors.New("failed to parse, expected statement")
@@ -269,7 +268,7 @@ func Parse(source string) (*SelectStatement, error) {
 	return stmt, nil
 }
 
-func parseSelect(tokens []*token, initialCursor uint, delimiter token) (*SelectStatement, uint, bool) {
+func parseSelect(tokens []*token, initialCursor uint) (*SelectStatement, uint, bool) {
 	cursor := initialCursor
 
 	semicolonToken := tokenFromSymbol(semicolonSymbol)
