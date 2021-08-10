@@ -27,7 +27,6 @@ linters-settings:
 linters:
   disable-all: true
   enable:
-    #- govet
     - gocyclo
     - dupl
     - lll
@@ -36,7 +35,6 @@ linters:
     - depguard
     - misspell
     - goimports
-    #- gocritic
     - staticcheck
     - deadcode
     - errcheck
@@ -53,7 +51,6 @@ linters:
     - whitespace
     - exportloopref
     - revive
-    #- wsl
     - gomnd
 
 run:
