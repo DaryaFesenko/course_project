@@ -4,5 +4,8 @@ repos:
   hooks:
     - id: go-fmt
     - id: go-imports
-    - id: golangci-lint
     - id: go-build
+- repo: https://github.com/golangci/golangci-lint
+  rev: v1.41.1
+  hooks:
+    - id: golangci-lint
