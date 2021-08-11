@@ -2,6 +2,7 @@ package app
 
 import (
 	"context"
+	"io/ioutil"
 	"os"
 	"os/exec"
 	"os/signal"
@@ -54,7 +55,7 @@ func (a *App) WatchSignals(cancel context.CancelFunc) {
 func (a *App) parseConfig() error {
 	var data []byte
 
-	data, err := os.ReadFile("config.yaml")
+	data, err := ioutil.ReadFile("config.yaml")
 	if err != nil {
 		return err
 	}
