@@ -67,9 +67,11 @@ func lexOperation(source string, ic cursor) (*token, cursor, bool) {
 		notEqualOperation,
 		moreOperation,
 		lessOperation,
+		moreEqualOperation,
+		lessEqualOperation,
 	}
 
-	options := make([]string, len(operations))
+	options := make([]string, 0, len(operations))
 	for _, o := range operations {
 		options = append(options, string(o))
 	}
@@ -236,9 +238,10 @@ func lexSymbol(source string, ic cursor) (*token, cursor, bool) {
 	symbols := []symbol{
 		commaSymbol,
 		semicolonSymbol,
+		allFields,
 	}
 
-	options := make([]string, len(symbols))
+	options := make([]string, 0, len(symbols))
 	for _, s := range symbols {
 		options = append(options, string(s))
 	}
@@ -270,7 +273,7 @@ func lexKeyword(source string, ic cursor) (*token, cursor, bool) {
 		orKeyword,
 	}
 
-	options := make([]string, len(keywords))
+	options := make([]string, 0, len(keywords))
 	for _, k := range keywords {
 		options = append(options, string(k))
 	}

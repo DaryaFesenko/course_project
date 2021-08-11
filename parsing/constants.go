@@ -31,8 +31,12 @@ const (
 type operation string
 
 const (
-	moreOperation     operation = ">"
-	lessOperation     operation = "<"
-	equalsOperation   operation = "="
-	notEqualOperation operation = "!="
+	moreOperation      operation = ">"
+	lessOperation      operation = "<"
+	moreEqualOperation operation = ">="
+	lessEqualOperation operation = "<="
+	equalsOperation    operation = "="
+	notEqualOperation  operation = "!="
 )
+
+const allFields symbol = "*"

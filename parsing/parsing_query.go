@@ -17,9 +17,10 @@ type token struct {
 }
 
 type SelectStatement struct {
-	item  []*expression
-	from  token
-	where []interface{}
+	item       []*expression
+	from       token
+	where      []interface{}
+	isAllItems bool
 }
 
 type expression struct {
@@ -77,12 +78,17 @@ func parseSelectStatement(tokens []*token, initialCursor uint, delimiter token) 
 
 	slct := SelectStatement{}
 
-	exps, newCursor, ok := parseExpressions(tokens, cursor, []token{tokenFromKeyword(fromKeyword), delimiter})
+	exps, newCursor, ok, isAllItems := parseExpressions(tokens, cursor, []token{tokenFromKeyword(fromKeyword), delimiter})
 	if !ok {
 		return nil, initialCursor, false
 	}
 
-	slct.item = *exps
+	if isAllItems {
+		slct.isAllItems = isAllItems
+	} else {
+		slct.item = *exps
+	}
+
 	cursor = newCursor
 
 	if expectToken(tokens, cursor, tokenFromKeyword(fromKeyword)) {
@@ -182,18 +188,28 @@ outer:
 	return &where, cursor, true
 }
 
-func parseExpressions(tokens []*token, initialCursor uint, delimiters []token) (*[]*expression, uint, bool) {
+func parseExpressions(tokens []*token, initialCursor uint, delimiters []token) (*[]*expression, uint, bool, bool) {
 	cursor := initialCursor
+
+	isAllItems := false
 
 	exps := []*expression{}
 outer:
 	for {
 		if cursor >= uint(len(tokens)) {
-			return nil, initialCursor, false
+			return nil, initialCursor, false, isAllItems
+		}
+
+		current := tokens[cursor]
+		if current.kind == symbolKind {
+			if current.value == string(allFields) {
+				isAllItems = true
+				cursor++
+				return &exps, cursor, true, isAllItems
+			}
 		}
 
 		// Look for delimiter
-		current := tokens[cursor]
 		for _, delimiter := range delimiters {
 			if delimiter.equals(current) {
 				break outer
@@ -204,7 +220,7 @@ outer:
 		if len(exps) > 0 {
 			if !expectToken(tokens, cursor, tokenFromSymbol(commaSymbol)) {
 				helpMessage(tokens, cursor, "Expected comma")
-				return nil, initialCursor, false
+				return nil, initialCursor, false, isAllItems
 			}
 
 			cursor++
@@ -214,14 +230,14 @@ outer:
 		exp, newCursor, ok := parseExpression(tokens, cursor, tokenFromSymbol(commaSymbol))
 		if !ok {
 			helpMessage(tokens, cursor, "Expected expression")
-			return nil, initialCursor, false
+			return nil, initialCursor, false, isAllItems
 		}
 		cursor = newCursor
 
 		exps = append(exps, exp)
 	}
 
-	return &exps, cursor, true
+	return &exps, cursor, true, isAllItems
 }
 
 func parseExpression(tokens []*token, initialCursor uint, _ token) (*expression, uint, bool) {

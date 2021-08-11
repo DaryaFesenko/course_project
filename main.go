@@ -1,27 +1,37 @@
 package main
 
 import (
+	"context"
+	"course_project/app"
+	"course_project/parsing"
 	"fmt"
-	//"course_project/parsing"
+	"os"
+	"syscall"
+
+	log "github.com/sirupsen/logrus"
 )
 
-const p = "papapa"
-
 func main() {
-	t := new(string)
-	*t = p
-
-	y := new(string)
-	*y = p
-	a := t
-	b := y
-
-	if *a != *b {
-		fmt.Println(*a, *b)
+	app := app.NewApp()
+	err := app.App()
+	if err != nil {
+		l := log.WithField("method", "app.App")
+		l.Fatal(err)
 	}
-	/*
-		// дописать в обработчик обработку 'ыекштп' для where
-		sel, err := parsing.Parse("continent='Asia' AND date>'2020-04-14';")
 
-		fmt.Println(sel, err)*/
+	timeOut := app.Config.GetTimeOut()
+	ctx, cancel := context.WithTimeout(context.Background(), timeOut)
+	defer cancel()
+	go exit(ctx)
+
+	go app.WatchSignals(cancel)
+
+	sel, err := parsing.Parse("select first_name from table where id = 5 and name = 'dasha' or count <= 5;")
+
+	fmt.Println(sel, err)
+}
+
+func exit(ctx context.Context) {
+	<-ctx.Done()
+	os.Exit(int(syscall.SIGINT))
 }
