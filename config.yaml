@@ -1,1 +1,3 @@
 timeout: 5s
+filePathAccessLog: "access.log"
+filePathErrorLog: "error.log"

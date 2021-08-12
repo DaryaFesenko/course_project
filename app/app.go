@@ -2,22 +2,24 @@ package app
 
 import (
 	"context"
-	"io/ioutil"
+	"fmt"
+	"io/fs"
 	"os"
 	"os/exec"
 	"os/signal"
 	"syscall"
+	"time"
 
 	log "github.com/sirupsen/logrus"
-	"gopkg.in/yaml.v2"
 )
 
 type App struct {
-	Config Config
+	Config     Config
+	configPath string
 }
 
-func NewApp() *App {
-	return &App{}
+func NewApp(configPath string) *App {
+	return &App{configPath: configPath}
 }
 
 func (a *App) App() error {
@@ -26,12 +28,13 @@ func (a *App) App() error {
 		return err
 	}
 
-	err = a.getLastVersionCommit()
+	a.Config = *NewConfig()
+	err = a.Config.ParseConfig(a.configPath)
 	if err != nil {
 		return err
 	}
 
-	err = a.parseConfig()
+	err = a.getLastVersionCommit()
 	if err != nil {
 		return err
 	}
@@ -44,48 +47,23 @@ func (a *App) WatchSignals(cancel context.CancelFunc) {
 
 	signal.Notify(osSignalChan, syscall.SIGINT)
 
-	sig := <-osSignalChan
+	<-osSignalChan
 
-	l := log.WithField("method", "app.watchSignals")
-	l.Infof("got signal: %q", sig.String())
-
+	a.LogAccess("user interrupted")
 	cancel()
 }
 
-func (a *App) parseConfig() error {
-	var data []byte
-
-	data, err := ioutil.ReadFile("config.yaml")
-	if err != nil {
-		return err
-	}
-
-	a.Config = *NewConfig()
-	err = yaml.Unmarshal(data, &a.Config)
-	if err != nil {
-		return err
-	}
-
-	l := log.WithField("method", "app.parseConfig")
-	l.Info("parse config end")
-	return nil
-}
-
 func (a *App) getFilePath() error {
-	l := log.WithField("method", "app.getFilePath")
-
 	ex, err := os.Executable()
 	if err != nil {
 		return err
 	}
 
-	l.Infof("path: %s", ex)
+	log.WithField("method", "app.getFilePath").Infof("path: %s", ex)
 	return nil
 }
 
 func (a *App) getLastVersionCommit() error {
-	l := log.WithField("method", "app.getFilePath")
-
 	cmd := exec.Command("git", "rev-parse", "--short", "HEAD")
 	stdout, err := cmd.Output()
 
@@ -94,6 +72,57 @@ func (a *App) getLastVersionCommit() error {
 	}
 
 	result := string(stdout)[:len(string(stdout))-1]
-	l.Infof("version: %s", result)
+	log.WithField("method", "app.getFilePath").Infof("version: %s", result)
+	return nil
+}
+
+func (a *App) LogAccess(request string) {
+	filePath := a.Config.GetFilePathAccessLog()
+
+	message := fmt.Sprintf("time: '%s', request: '%s'\n", time.Now().Format("02.01.2006 15:04:05"), request)
+	if err := a.writeToFile(filePath, message); err != nil {
+		a.LogError(err)
+	}
+}
+
+func (a *App) LogError(err error) {
+	filePath := a.Config.GetFilePathErrorLog()
+
+	message := fmt.Sprintf("time: '%s', error: '%s'\n", time.Now().Format("02.01.2006 15:04:05"), err)
+	if err := a.writeToFile(filePath, message); err != nil {
+		log.Error(err)
+	}
+}
+
+func (a *App) writeToFile(filePath, message string) error {
+	if _, err := os.Stat(filePath); os.IsNotExist(err) {
+		file, err := os.Create(filePath)
+		if err != nil {
+			return err
+		}
+
+		if _, err := file.WriteString(message); err != nil {
+			return err
+		}
+	} else {
+		file, err := os.Open(filePath)
+		if err != nil {
+			return err
+		}
+		defer file.Close()
+
+		data, err := os.ReadFile(filePath)
+		if err != nil {
+			return err
+		}
+
+		data = append(data, []byte(message)...)
+
+		err = os.WriteFile(filePath, data, fs.ModeAppend)
+		if err != nil {
+			return err
+		}
+	}
+
 	return nil
 }

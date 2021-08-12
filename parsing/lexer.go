@@ -23,7 +23,6 @@ lex:
 			if token, newCursor, ok := l(source, cur); ok {
 				cur = newCursor
 
-				// Omit nil tokens for valid, but empty syntax like newlines
 				if token != nil {
 					tokens = append(tokens, token)
 				}
@@ -45,12 +44,11 @@ lex:
 func lexOperation(source string, ic cursor) (*token, cursor, bool) {
 	c := source[ic.pointer]
 	cur := ic
-	// Will get overwritten later if not an ignored syntax
+
 	cur.pointer++
 	cur.loc.col++
 
 	switch c {
-	// Syntax that should be thrown away
 	case '\n':
 		cur.loc.line++
 		cur.loc.col = 0
@@ -76,9 +74,7 @@ func lexOperation(source string, ic cursor) (*token, cursor, bool) {
 		options = append(options, string(o))
 	}
 
-	// Use `ic`, not `cur`
 	match := longestMatch(source, ic, options)
-	// Unknown character
 	if match == "" {
 		return nil, ic, false
 	}
@@ -107,7 +103,6 @@ func lexNumeric(source string, ic cursor) (*token, cursor, bool) {
 		isPeriod := c == '.'
 		isExpMarker := c == 'e'
 
-		// Must start with a digit or period
 		if cur.pointer == ic.pointer {
 			if !isDigit && !isPeriod {
 				return nil, ic, false
@@ -133,11 +128,9 @@ func lexNumeric(source string, ic cursor) (*token, cursor, bool) {
 				return nil, ic, false
 			}
 
-			// No periods allowed after expMarker
 			periodFound = true
 			expMarkerFound = true
 
-			// expMarker must be followed by digits
 			if cur.pointer == uint(len(source)-1) {
 				return nil, ic, false
 			}
@@ -156,7 +149,6 @@ func lexNumeric(source string, ic cursor) (*token, cursor, bool) {
 		}
 	}
 
-	// No characters accumulated
 	if cur.pointer == ic.pointer {
 		return nil, ic, false
 	}
@@ -187,8 +179,6 @@ func lexCharacterDelimited(source string, ic cursor, delimiter byte) (*token, cu
 		c := source[cur.pointer]
 
 		if c == delimiter {
-			fmt.Println(cur.pointer+1, uint(len(source)), source[cur.pointer+1])
-			// SQL escapes are via double characters, not backslash.
 			if cur.pointer+1 >= uint(len(source)) || source[cur.pointer+1] != delimiter {
 				cur.pointer++
 
@@ -218,12 +208,11 @@ func lexString(source string, ic cursor) (*token, cursor, bool) {
 func lexSymbol(source string, ic cursor) (*token, cursor, bool) {
 	c := source[ic.pointer]
 	cur := ic
-	// Will get overwritten later if not an ignored syntax
+
 	cur.pointer++
 	cur.loc.col++
 
 	switch c {
-	// Syntax that should be thrown away
 	case '\n':
 		cur.loc.line++
 		cur.loc.col = 0
@@ -234,7 +223,6 @@ func lexSymbol(source string, ic cursor) (*token, cursor, bool) {
 		return nil, cur, true
 	}
 
-	// Syntax that should be kept
 	symbols := []symbol{
 		commaSymbol,
 		semicolonSymbol,
@@ -246,9 +234,8 @@ func lexSymbol(source string, ic cursor) (*token, cursor, bool) {
 		options = append(options, string(s))
 	}
 
-	// Use `ic`, not `cur`
 	match := longestMatch(source, ic, options)
-	// Unknown character
+
 	if match == "" {
 		return nil, ic, false
 	}
@@ -312,7 +299,6 @@ func longestMatch(source string, ic cursor, options []string) string {
 				}
 			}
 
-			// Deal with cases like INT vs INTO
 			if option == string(value) {
 				skipList = append(skipList, i)
 				if len(option) > len(match) {
@@ -338,7 +324,6 @@ func longestMatch(source string, ic cursor, options []string) string {
 }
 
 func lexIdentifier(source string, ic cursor) (*token, cursor, bool) {
-	// Handle separately if is a double-quoted identifier
 	if token, newCursor, ok := lexCharacterDelimited(source, ic, '"'); ok {
 		return token, newCursor, true
 	}
@@ -346,7 +331,6 @@ func lexIdentifier(source string, ic cursor) (*token, cursor, bool) {
 	cur := ic
 
 	c := source[cur.pointer]
-	// Other characters count too, big ignoring non-ascii for now
 	isAlphabetical := (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z')
 	if !isAlphabetical {
 		return nil, ic, false
@@ -358,7 +342,6 @@ func lexIdentifier(source string, ic cursor) (*token, cursor, bool) {
 	for ; cur.pointer < uint(len(source)); cur.pointer++ {
 		c = source[cur.pointer]
 
-		// Other characters count too, big ignoring non-ascii for now
 		isAlphabetical := (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z')
 		isNumeric := c >= '0' && c <= '9'
 		if isAlphabetical || isNumeric || c == '$' || c == '_' {
@@ -375,7 +358,6 @@ func lexIdentifier(source string, ic cursor) (*token, cursor, bool) {
 	}
 
 	return &token{
-		// Unquoted dentifiers are case-insensitive
 		value: strings.ToLower(string(value)),
 		loc:   ic.loc,
 		kind:  identifierKind,

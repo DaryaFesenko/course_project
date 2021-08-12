@@ -1,6 +1,7 @@
 package parsing
 
 import (
+	"course_project/app"
 	"errors"
 	"fmt"
 )
@@ -43,42 +44,42 @@ func (t *token) equals(other *token) bool {
 	return t.value == other.value && t.kind == other.kind
 }
 
-func expectToken(tokens []*token, cursor uint, t token) bool {
-	if cursor >= uint(len(tokens)) {
+func (p *Parser) expectToken(cursor uint, t token) bool {
+	if cursor >= uint(len(p.tokens)) {
 		return false
 	}
 
-	return t.equals(tokens[cursor])
+	return t.equals(p.tokens[cursor])
 }
 
-func tokenFromKeyword(k keyword) token {
+func (p *Parser) tokenFromKeyword(k keyword) token {
 	return token{
 		kind:  keywordKind,
 		value: string(k),
 	}
 }
 
-func helpMessage(tokens []*token, cursor uint, msg string) {
+func (p *Parser) helpMessage(cursor uint, msg string) {
 	var c *token
-	if cursor < uint(len(tokens)) {
-		c = tokens[cursor]
+	if cursor < uint(len(p.tokens)) {
+		c = p.tokens[cursor]
 	} else {
-		c = tokens[cursor-1]
+		c = p.tokens[cursor-1]
 	}
 
-	fmt.Printf("[%d,%d]: %s, got: %s\n", c.loc.line, c.loc.col, msg, c.value)
+	p.app.LogAccess(fmt.Sprintf("[%d,%d]: %s, got: %s\n", c.loc.line, c.loc.col, msg, c.value))
 }
 
-func parseSelectStatement(tokens []*token, initialCursor uint, delimiter token) (*SelectStatement, uint, bool) {
+func (p *Parser) parseSelectStatement(initialCursor uint, delimiter token) (*SelectStatement, uint, bool) {
 	cursor := initialCursor
-	if !expectToken(tokens, cursor, tokenFromKeyword(selectKeyword)) {
+	if !p.expectToken(cursor, p.tokenFromKeyword(selectKeyword)) {
 		return nil, initialCursor, false
 	}
 	cursor++
 
 	slct := SelectStatement{}
 
-	exps, newCursor, ok, isAllItems := parseExpressions(tokens, cursor, []token{tokenFromKeyword(fromKeyword), delimiter})
+	exps, newCursor, ok, isAllItems := p.parseExpressions(cursor, []token{p.tokenFromKeyword(fromKeyword), delimiter})
 	if !ok {
 		return nil, initialCursor, false
 	}
@@ -91,12 +92,12 @@ func parseSelectStatement(tokens []*token, initialCursor uint, delimiter token) 
 
 	cursor = newCursor
 
-	if expectToken(tokens, cursor, tokenFromKeyword(fromKeyword)) {
+	if p.expectToken(cursor, p.tokenFromKeyword(fromKeyword)) {
 		cursor++
 
-		from, newCursor, ok := parseToken(tokens, cursor, identifierKind)
+		from, newCursor, ok := p.parseToken(cursor, identifierKind)
 		if !ok {
-			helpMessage(tokens, cursor, "Expected FROM token")
+			p.helpMessage(cursor, "Expected FROM token")
 			return nil, initialCursor, false
 		}
 
@@ -105,7 +106,7 @@ func parseSelectStatement(tokens []*token, initialCursor uint, delimiter token) 
 	}
 
 	//for where
-	where, newCursor, ok := parseWhere(tokens, cursor, tokenFromSymbol(semicolonSymbol))
+	where, newCursor, ok := p.parseWhere(cursor, p.tokenFromSymbol(semicolonSymbol))
 	if !ok {
 		return nil, initialCursor, false
 	}
@@ -116,14 +117,14 @@ func parseSelectStatement(tokens []*token, initialCursor uint, delimiter token) 
 	return &slct, cursor, true
 }
 
-func parseToken(tokens []*token, initialCursor uint, kind tokenKind) (*token, uint, bool) {
+func (p *Parser) parseToken(initialCursor uint, kind tokenKind) (*token, uint, bool) {
 	cursor := initialCursor
 
-	if cursor >= uint(len(tokens)) {
+	if cursor >= uint(len(p.tokens)) {
 		return nil, initialCursor, false
 	}
 
-	current := tokens[cursor]
+	current := p.tokens[cursor]
 	if current.kind == kind {
 		return current, cursor + 1, true
 	}
@@ -131,14 +132,14 @@ func parseToken(tokens []*token, initialCursor uint, kind tokenKind) (*token, ui
 	return nil, initialCursor, false
 }
 
-func tokenFromSymbol(s symbol) token {
+func (p *Parser) tokenFromSymbol(s symbol) token {
 	return token{
 		kind:  symbolKind,
 		value: string(s),
 	}
 }
 
-func parseWhere(tokens []*token, initialCursor uint, delimiter token) (*[]interface{}, uint, bool) {
+func (p *Parser) parseWhere(initialCursor uint, delimiter token) (*[]interface{}, uint, bool) {
 	cursor := initialCursor
 
 	where := make([]interface{}, 0)
@@ -147,18 +148,18 @@ func parseWhere(tokens []*token, initialCursor uint, delimiter token) (*[]interf
 	kinds := []tokenKind{keywordKind, identifierKind, numericKind, stringKind, operationKind}
 outer:
 	for {
-		if cursor >= uint(len(tokens)) {
+		if cursor >= uint(len(p.tokens)) {
 			return nil, initialCursor, false
 		}
 
 		// Look for delimiter
-		current := tokens[cursor]
+		current := p.tokens[cursor]
 		if delimiter.equals(current) {
 			break outer
 		}
 
 		for _, kind := range kinds {
-			t, newCursor, ok := parseToken(tokens, cursor, kind)
+			t, newCursor, ok := p.parseToken(cursor, kind)
 			if ok {
 				if kind == keywordKind {
 					p := predicate{
@@ -188,7 +189,7 @@ outer:
 	return &where, cursor, true
 }
 
-func parseExpressions(tokens []*token, initialCursor uint, delimiters []token) (*[]*expression, uint, bool, bool) {
+func (p *Parser) parseExpressions(initialCursor uint, delimiters []token) (*[]*expression, uint, bool, bool) {
 	cursor := initialCursor
 
 	isAllItems := false
@@ -196,11 +197,11 @@ func parseExpressions(tokens []*token, initialCursor uint, delimiters []token) (
 	exps := []*expression{}
 outer:
 	for {
-		if cursor >= uint(len(tokens)) {
+		if cursor >= uint(len(p.tokens)) {
 			return nil, initialCursor, false, isAllItems
 		}
 
-		current := tokens[cursor]
+		current := p.tokens[cursor]
 		if current.kind == symbolKind {
 			if current.value == string(allFields) {
 				isAllItems = true
@@ -218,8 +219,8 @@ outer:
 
 		// Look for comma
 		if len(exps) > 0 {
-			if !expectToken(tokens, cursor, tokenFromSymbol(commaSymbol)) {
-				helpMessage(tokens, cursor, "Expected comma")
+			if !p.expectToken(cursor, p.tokenFromSymbol(commaSymbol)) {
+				p.helpMessage(cursor, "Expected comma")
 				return nil, initialCursor, false, isAllItems
 			}
 
@@ -227,9 +228,9 @@ outer:
 		}
 
 		// Look for expression
-		exp, newCursor, ok := parseExpression(tokens, cursor, tokenFromSymbol(commaSymbol))
+		exp, newCursor, ok := p.parseExpression(cursor, p.tokenFromSymbol(commaSymbol))
 		if !ok {
-			helpMessage(tokens, cursor, "Expected expression")
+			p.helpMessage(cursor, "Expected expression")
 			return nil, initialCursor, false, isAllItems
 		}
 		cursor = newCursor
@@ -240,12 +241,12 @@ outer:
 	return &exps, cursor, true, isAllItems
 }
 
-func parseExpression(tokens []*token, initialCursor uint, _ token) (*expression, uint, bool) {
+func (p *Parser) parseExpression(initialCursor uint, _ token) (*expression, uint, bool) {
 	cursor := initialCursor
 
 	kinds := []tokenKind{identifierKind, numericKind, stringKind}
 	for _, kind := range kinds {
-		t, newCursor, ok := parseToken(tokens, cursor, kind)
+		t, newCursor, ok := p.parseToken(cursor, kind)
 		if ok {
 			return &expression{
 				literal: t,
@@ -256,42 +257,52 @@ func parseExpression(tokens []*token, initialCursor uint, _ token) (*expression,
 	return nil, initialCursor, false
 }
 
-func Parse(source string) (*SelectStatement, error) {
-	tokens, err := lex(source)
+func (p *Parser) Parse(source string) (*SelectStatement, error) {
+	var err error
+	p.tokens, err = lex(source)
 	if err != nil {
 		return nil, err
 	}
 
 	cursor := uint(0)
-	stmt, newCursor, ok := parseSelect(tokens, cursor)
+	stmt, newCursor, ok := p.parseSelect(cursor)
 	if !ok {
-		helpMessage(tokens, cursor, "Expected statement")
+		p.helpMessage(cursor, "Expected statement")
 		return nil, errors.New("failed to parse, expected statement")
 	}
 	cursor = newCursor
 
 	atLeastOneSemicolon := false
-	for expectToken(tokens, cursor, tokenFromSymbol(semicolonSymbol)) {
+	for p.expectToken(cursor, p.tokenFromSymbol(semicolonSymbol)) {
 		cursor++
 		atLeastOneSemicolon = true
 	}
 
 	if !atLeastOneSemicolon {
-		helpMessage(tokens, cursor, "Expected semi-colon delimiter between statements")
+		p.helpMessage(cursor, "Expected semi-colon delimiter between statements")
 		return nil, errors.New("missing semi-colon between statements")
 	}
 
 	return stmt, nil
 }
 
-func parseSelect(tokens []*token, initialCursor uint) (*SelectStatement, uint, bool) {
+func (p *Parser) parseSelect(initialCursor uint) (*SelectStatement, uint, bool) {
 	cursor := initialCursor
 
-	semicolonToken := tokenFromSymbol(semicolonSymbol)
-	slct, newCursor, ok := parseSelectStatement(tokens, cursor, semicolonToken)
+	semicolonToken := p.tokenFromSymbol(semicolonSymbol)
+	slct, newCursor, ok := p.parseSelectStatement(cursor, semicolonToken)
 	if ok {
 		return slct, newCursor, true
 	}
 
 	return nil, initialCursor, false
+}
+
+type Parser struct {
+	tokens []*token
+	app    app.App
+}
+
+func NewParser(app *app.App) Parser {
+	return Parser{app: *app}
 }

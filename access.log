@@ -1,0 +1,5 @@
+time: '2021-08-12 19:52:32.772229288 +0300 MSK m=+0.002945311', request: 'select first_name from table where id = 5 and name = 'dasha' or count <= 5;'
+time: '1212-88-8998 1212:88:00', request: 'select first_name from table where id = 5 and name = 'dasha' or count <= 5;'
+time: '12128-08-812 89:4112:712', request: 'select first_name from table where id = 5 and name = 'dasha' or count <= 5;'
+time: '812.08.2021 89:1112:712', request: 'select first_name from table where id = 5 and name = 'dasha' or count <= 5;'
+time: '12.08.2021 20:00:29', request: 'select first_name from table where id = 5 and name = 'dasha' or count <= 5;'
