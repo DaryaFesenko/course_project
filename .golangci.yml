@@ -16,13 +16,6 @@ linters-settings:
     locale: US
   lll:
     line-length: 140
-  gocritic:
-    enabled-tags:
-      - performance
-      - style
-      - experimental
-    disabled-checks:
-      - wrapperFunc
 
 linters:
   disable-all: true
@@ -42,6 +35,7 @@ linters:
     - structcheck
     - varcheck
     - ineffassign
+    - typecheck
     - bodyclose
     - unconvert
     - unparam

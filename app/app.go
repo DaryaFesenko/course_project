@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
+	"io/ioutil"
 	"os"
 	"os/exec"
 	"os/signal"
@@ -120,14 +121,14 @@ func (a *App) writeToFile(filePath, message string) error {
 		}
 		defer file.Close()
 
-		data, err := os.ReadFile(filePath)
+		data, err := ioutil.ReadFile(filePath)
 		if err != nil {
 			return err
 		}
 
 		data = append(data, []byte(message)...)
 
-		err = os.WriteFile(filePath, data, fs.ModeAppend)
+		err = ioutil.WriteFile(filePath, data, fs.ModeAppend)
 		if err != nil {
 			return err
 		}
