@@ -42,7 +42,6 @@ linters:
     - structcheck
     - varcheck
     - ineffassign
-    - typecheck
     - bodyclose
     - unconvert
     - unparam
