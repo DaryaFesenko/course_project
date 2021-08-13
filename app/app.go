@@ -1,7 +1,12 @@
 package app
 
 import (
+	"bufio"
 	"context"
+	"course_project/pkg/parsing"
+	"course_project/pkg/sending"
+	"encoding/csv"
+	"errors"
 	"fmt"
 	"io/fs"
 	"os"
@@ -13,33 +18,37 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
+const (
+	messageClient = "Введите запрос в формате:\n\n" +
+		"	'SELECT * (или поля через запятую) FROM имя_csv_файла WHERE column_name OP 'example' [AND/OR column_name OP 5]';\n\n" +
+		"В конце обязательно поставьте ';'\n\n "
+)
+
 type App struct {
 	Config     Config
 	configPath string
 }
 
-func NewApp(configPath string) *App {
-	return &App{configPath: configPath}
-}
+func New(configPath string) (*App, error) {
+	a := &App{configPath: configPath}
 
-func (a *App) App() error {
 	err := a.getFilePath()
 	if err != nil {
-		return err
+		return a, err
 	}
 
 	a.Config = *NewConfig()
 	err = a.Config.ParseConfig(a.configPath)
 	if err != nil {
-		return err
+		return a, err
 	}
 
 	err = a.getLastVersionCommit()
 	if err != nil {
-		return err
+		return a, err
 	}
 
-	return nil
+	return a, nil
 }
 
 func (a *App) WatchSignals(cancel context.CancelFunc) {
@@ -79,7 +88,7 @@ func (a *App) getLastVersionCommit() error {
 func (a *App) LogAccess(request string) {
 	filePath := a.Config.GetFilePathAccessLog()
 
-	message := fmt.Sprintf("time: '%s', request: '%s'\n", time.Now().Format("02.01.2006 15:04:05"), request)
+	message := fmt.Sprintf("time: \"%s\", request: \"%s\"\n", time.Now().Format("02.01.2006 15:04:05"), request)
 	if err := a.writeToFile(filePath, message); err != nil {
 		a.LogError(err)
 	}
@@ -88,7 +97,7 @@ func (a *App) LogAccess(request string) {
 func (a *App) LogError(err error) {
 	filePath := a.Config.GetFilePathErrorLog()
 
-	message := fmt.Sprintf("time: '%s', error: '%s'\n", time.Now().Format("02.01.2006 15:04:05"), err)
+	message := fmt.Sprintf("time: \"%s\", error: \"%s\"\n", time.Now().Format("02.01.2006 15:04:05"), err)
 	if err := a.writeToFile(filePath, message); err != nil {
 		log.Error(err)
 	}
@@ -122,6 +131,106 @@ func (a *App) writeToFile(filePath, message string) error {
 		if err != nil {
 			return err
 		}
+	}
+
+	return nil
+}
+
+func (a *App) Run() {
+	timeOut := a.Config.GetTimeOut()
+	ctx, cancel := context.WithTimeout(context.Background(), timeOut)
+	defer cancel()
+
+	go a.exit(ctx)
+	go a.WatchSignals(cancel)
+
+	p := parsing.NewParser()
+	request, err := a.getRequestFromClient()
+	if err != nil {
+		a.LogError(err)
+		return
+	}
+	a.LogAccess(request)
+
+	sel, err := p.Parse(request)
+	if err != nil {
+		a.LogError(err)
+		return
+	}
+
+	s, err := sending.New(a.Config.GetCsvFilePath())
+	if err != nil {
+		a.LogError(err)
+		return
+	}
+
+	res, err := s.SendRequest(sel)
+	if err != nil {
+		a.LogError(err)
+		return
+	}
+
+	err = a.removeOldResultFileCsv()
+	if err != nil {
+		a.LogError(err)
+		return
+	}
+
+	err = a.writeResultToCsv(res)
+	if err != nil {
+		a.LogError(err)
+		return
+	}
+
+	fmt.Println("\ncount: ", len(res), " result in: ", a.Config.FilePathResultCsv)
+}
+
+func (a *App) getRequestFromClient() (string, error) {
+	fmt.Println(messageClient)
+
+	in := bufio.NewReader(os.Stdin)
+
+	request, err := in.ReadString('\n')
+	if err != nil {
+		return request, err
+	}
+	return request, nil
+}
+
+func (a *App) exit(ctx context.Context) {
+	<-ctx.Done()
+	a.LogError(errors.New("context end"))
+	log.Fatal("exit")
+}
+
+func (a *App) removeOldResultFileCsv() error {
+	if _, err := os.Stat(a.Config.FilePathResultCsv); os.IsExist(err) {
+		if err != nil {
+			return err
+		}
+		err = os.Remove(a.Config.FilePathResultCsv)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (a *App) writeResultToCsv(result [][]string) error {
+	outfile, err := os.Create(a.Config.FilePathResultCsv)
+	if err != nil {
+		return fmt.Errorf("Unable to open output: %s", err)
+	}
+	defer outfile.Close()
+
+	w := csv.NewWriter(outfile)
+	er := w.WriteAll(result)
+	if er != nil {
+		return er
+	}
+
+	if err := w.Error(); err != nil {
+		return fmt.Errorf("error writing csv: %s", err)
 	}
 
 	return nil

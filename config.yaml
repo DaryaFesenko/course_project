@@ -1,3 +1,5 @@
-timeout: 5s
+timeout: 600000s
 filePathAccessLog: "access.log"
 filePathErrorLog: "error.log"
+filePathCsv: "covid_19_data.csv"
+filePathResultCsv: "result.csv"

@@ -9,3 +9,17 @@ repos:
   rev: v1.41.1
   hooks:
     - id: golangci-lint
+- repo: local
+  hooks:
+    - id: make-check
+      name: 'make check'
+      entry: make check
+      files: '\.go$'
+      language: 'system'
+      description: "Runs `make check`, requires golang"
+    - id: make-test
+      name: 'make test'
+      entry: make test
+      files: '\.go$'
+      language: 'system'
+      description: "Runs `make test`, requires golang"

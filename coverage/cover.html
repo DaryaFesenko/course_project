@@ -1,0 +1,1140 @@
+
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+		<title>parsing: Go Coverage Report</title>
+		<style>
+			body {
+				background: black;
+				color: rgb(80, 80, 80);
+			}
+			body, pre, #legend span {
+				font-family: Menlo, monospace;
+				font-weight: bold;
+			}
+			#topbar {
+				background: black;
+				position: fixed;
+				top: 0; left: 0; right: 0;
+				height: 42px;
+				border-bottom: 1px solid rgb(80, 80, 80);
+			}
+			#content {
+				margin-top: 50px;
+			}
+			#nav, #legend {
+				float: left;
+				margin-left: 10px;
+			}
+			#legend {
+				margin-top: 12px;
+			}
+			#nav {
+				margin-top: 10px;
+			}
+			#legend span {
+				margin: 0 5px;
+			}
+			.cov0 { color: rgb(192, 0, 0) }
+.cov1 { color: rgb(128, 128, 128) }
+.cov2 { color: rgb(116, 140, 131) }
+.cov3 { color: rgb(104, 152, 134) }
+.cov4 { color: rgb(92, 164, 137) }
+.cov5 { color: rgb(80, 176, 140) }
+.cov6 { color: rgb(68, 188, 143) }
+.cov7 { color: rgb(56, 200, 146) }
+.cov8 { color: rgb(44, 212, 149) }
+.cov9 { color: rgb(32, 224, 152) }
+.cov10 { color: rgb(20, 236, 155) }
+
+		</style>
+	</head>
+	<body>
+		<div id="topbar">
+			<div id="nav">
+				<select id="files">
+				
+				<option value="file0">course_project/pkg/parsing/lexer.go (0.0%)</option>
+				
+				<option value="file1">course_project/pkg/parsing/parsing_query.go (0.0%)</option>
+				
+				<option value="file2">course_project/pkg/sending/csv_model.go (22.2%)</option>
+				
+				<option value="file3">course_project/pkg/sending/parse_csv.go (6.4%)</option>
+				
+				</select>
+			</div>
+			<div id="legend">
+				<span>not tracked</span>
+			
+				<span class="cov0">no coverage</span>
+				<span class="cov1">low coverage</span>
+				<span class="cov2">*</span>
+				<span class="cov3">*</span>
+				<span class="cov4">*</span>
+				<span class="cov5">*</span>
+				<span class="cov6">*</span>
+				<span class="cov7">*</span>
+				<span class="cov8">*</span>
+				<span class="cov9">*</span>
+				<span class="cov10">high coverage</span>
+			
+			</div>
+		</div>
+		<div id="content">
+		
+		<pre class="file" id="file0" style="display: none">package parsing
+
+import (
+        "fmt"
+        "strings"
+)
+
+type cursor struct {
+        pointer uint
+        loc     Location
+}
+
+type lexer func(string, cursor) (*Token, cursor, bool)
+
+func lex(source string) ([]*Token, error) <span class="cov0" title="0">{
+        tokens := []*Token{}
+        cur := cursor{}
+
+lex:
+        for cur.pointer &lt; uint(len(source)) </span><span class="cov0" title="0">{
+                lexers := []lexer{lexKeyword, lexSymbol, lexString, lexNumeric, lexIdentifier, lexOperation}
+                for _, l := range lexers </span><span class="cov0" title="0">{
+                        if token, newCursor, ok := l(source, cur); ok </span><span class="cov0" title="0">{
+                                cur = newCursor
+
+                                if token != nil </span><span class="cov0" title="0">{
+                                        tokens = append(tokens, token)
+                                }</span>
+
+                                <span class="cov0" title="0">continue lex</span>
+                        }
+                }
+
+                <span class="cov0" title="0">hint := ""
+                if len(tokens) &gt; 0 </span><span class="cov0" title="0">{
+                        hint = " after " + tokens[len(tokens)-1].Value
+                }</span>
+                <span class="cov0" title="0">return nil, fmt.Errorf("unable to lex token%s, at %d:%d", hint, cur.loc.Line, cur.loc.Col)</span>
+        }
+
+        <span class="cov0" title="0">return tokens, nil</span>
+}
+
+func lexOperation(source string, ic cursor) (*Token, cursor, bool) <span class="cov0" title="0">{
+        c := source[ic.pointer]
+        cur := ic
+
+        cur.pointer++
+        cur.loc.Col++
+
+        switch c </span>{
+        case '\n':<span class="cov0" title="0">
+                cur.loc.Line++
+                cur.loc.Col = 0
+
+                fallthrough</span>
+        case '\t':<span class="cov0" title="0">
+                fallthrough</span>
+        case ' ':<span class="cov0" title="0">
+                return nil, cur, true</span>
+        }
+
+        <span class="cov0" title="0">operations := []Operation{
+                EqualsOperation,
+                NotEqualOperation,
+                MoreOperation,
+                LessOperation,
+                MoreEqualOperation,
+                LessEqualOperation,
+        }
+
+        options := make([]string, 0, len(operations))
+        for _, o := range operations </span><span class="cov0" title="0">{
+                options = append(options, string(o))
+        }</span>
+
+        <span class="cov0" title="0">match := longestMatch(source, ic, options)
+        if match == "" </span><span class="cov0" title="0">{
+                return nil, ic, false
+        }</span>
+
+        <span class="cov0" title="0">cur.pointer = ic.pointer + uint(len(match))
+        cur.loc.Col = ic.loc.Col + uint(len(match))
+
+        return &amp;Token{
+                Value: match,
+                Loc:   ic.loc,
+                Kind:  OperationKind,
+        }, cur, true</span>
+}
+
+func lexNumeric(source string, ic cursor) (*Token, cursor, bool) <span class="cov0" title="0">{
+        cur := ic
+
+        periodFound := false
+        expMarkerFound := false
+
+        for ; cur.pointer &lt; uint(len(source)); cur.pointer++ </span><span class="cov0" title="0">{
+                c := source[cur.pointer]
+                cur.loc.Col++
+
+                isDigit := c &gt;= '0' &amp;&amp; c &lt;= '9'
+                isPeriod := c == '.'
+                isExpMarker := c == 'e'
+
+                if cur.pointer == ic.pointer </span><span class="cov0" title="0">{
+                        if !isDigit &amp;&amp; !isPeriod </span><span class="cov0" title="0">{
+                                return nil, ic, false
+                        }</span>
+
+                        <span class="cov0" title="0">periodFound = isPeriod
+
+                        continue</span>
+                }
+
+                <span class="cov0" title="0">if isPeriod </span><span class="cov0" title="0">{
+                        if periodFound </span><span class="cov0" title="0">{
+                                return nil, ic, false
+                        }</span>
+
+                        <span class="cov0" title="0">periodFound = true
+
+                        continue</span>
+                }
+
+                <span class="cov0" title="0">if isExpMarker </span><span class="cov0" title="0">{
+                        if expMarkerFound </span><span class="cov0" title="0">{
+                                return nil, ic, false
+                        }</span>
+
+                        <span class="cov0" title="0">periodFound = true
+                        expMarkerFound = true
+
+                        if cur.pointer == uint(len(source)-1) </span><span class="cov0" title="0">{
+                                return nil, ic, false
+                        }</span>
+
+                        <span class="cov0" title="0">cNext := source[cur.pointer+1]
+                        if cNext == '-' || cNext == '+' </span><span class="cov0" title="0">{
+                                cur.pointer++
+                                cur.loc.Col++
+                        }</span>
+
+                        <span class="cov0" title="0">continue</span>
+                }
+
+                <span class="cov0" title="0">if !isDigit </span><span class="cov0" title="0">{
+                        break</span>
+                }
+        }
+
+        <span class="cov0" title="0">if cur.pointer == ic.pointer </span><span class="cov0" title="0">{
+                return nil, ic, false
+        }</span>
+
+        <span class="cov0" title="0">return &amp;Token{
+                Value: source[ic.pointer:cur.pointer],
+                Loc:   ic.loc,
+                Kind:  NumericKind,
+        }, cur, true</span>
+}
+
+func lexCharacterDelimited(source string, ic cursor, delimiter byte) (*Token, cursor, bool) <span class="cov0" title="0">{
+        cur := ic
+
+        if len(source[cur.pointer:]) == 0 </span><span class="cov0" title="0">{
+                return nil, ic, false
+        }</span>
+
+        <span class="cov0" title="0">if source[cur.pointer] != delimiter </span><span class="cov0" title="0">{
+                return nil, ic, false
+        }</span>
+
+        <span class="cov0" title="0">cur.loc.Col++
+        cur.pointer++
+
+        var value []byte
+        for ; cur.pointer &lt; uint(len(source)); cur.pointer++ </span><span class="cov0" title="0">{
+                c := source[cur.pointer]
+
+                if c == delimiter </span><span class="cov0" title="0">{
+                        if cur.pointer+1 &gt;= uint(len(source)) || source[cur.pointer+1] != delimiter </span><span class="cov0" title="0">{
+                                cur.pointer++
+
+                                return &amp;Token{
+                                        Value: string(value),
+                                        Loc:   ic.loc,
+                                        Kind:  StringKind,
+                                }, cur, true
+                        }</span>
+                        <span class="cov0" title="0">value = append(value, delimiter)
+
+                        cur.pointer++
+                        cur.loc.Col++</span>
+                }
+
+                <span class="cov0" title="0">value = append(value, c)
+                cur.loc.Col++</span>
+        }
+
+        <span class="cov0" title="0">return nil, ic, false</span>
+}
+
+func lexString(source string, ic cursor) (*Token, cursor, bool) <span class="cov0" title="0">{
+        return lexCharacterDelimited(source, ic, '\'')
+}</span>
+
+func lexSymbol(source string, ic cursor) (*Token, cursor, bool) <span class="cov0" title="0">{
+        c := source[ic.pointer]
+        cur := ic
+
+        cur.pointer++
+        cur.loc.Col++
+
+        switch c </span>{
+        case '\n':<span class="cov0" title="0">
+                cur.loc.Line++
+                cur.loc.Col = 0
+                fallthrough</span>
+        case '\t':<span class="cov0" title="0">
+                fallthrough</span>
+        case ' ':<span class="cov0" title="0">
+                return nil, cur, true</span>
+        }
+
+        <span class="cov0" title="0">symbols := []symbol{
+                commaSymbol,
+                semicolonSymbol,
+                allFields,
+        }
+
+        options := make([]string, 0, len(symbols))
+        for _, s := range symbols </span><span class="cov0" title="0">{
+                options = append(options, string(s))
+        }</span>
+
+        <span class="cov0" title="0">match := longestMatch(source, ic, options)
+
+        if match == "" </span><span class="cov0" title="0">{
+                return nil, ic, false
+        }</span>
+
+        <span class="cov0" title="0">cur.pointer = ic.pointer + uint(len(match))
+        cur.loc.Col = ic.loc.Col + uint(len(match))
+
+        return &amp;Token{
+                Value: match,
+                Loc:   ic.loc,
+                Kind:  SymbolKind,
+        }, cur, true</span>
+}
+
+func lexKeyword(source string, ic cursor) (*Token, cursor, bool) <span class="cov0" title="0">{
+        cur := ic
+        keywords := []Keyword{
+                SelectKeyword,
+                WhereKeyword,
+                FromKeyword,
+                AndKeyword,
+                OrKeyword,
+        }
+
+        options := make([]string, 0, len(keywords))
+        for _, k := range keywords </span><span class="cov0" title="0">{
+                options = append(options, string(k))
+        }</span>
+
+        <span class="cov0" title="0">match := longestMatch(source, ic, options)
+        if match == "" </span><span class="cov0" title="0">{
+                return nil, ic, false
+        }</span>
+
+        <span class="cov0" title="0">cur.pointer = ic.pointer + uint(len(match))
+        cur.loc.Col = ic.loc.Col + uint(len(match))
+
+        return &amp;Token{
+                Value: match,
+                Kind:  KeywordKind,
+                Loc:   ic.loc,
+        }, cur, true</span>
+}
+
+func longestMatch(source string, ic cursor, options []string) string <span class="cov0" title="0">{
+        var value []byte
+        var skipList []int
+        var match string
+
+        cur := ic
+
+        for cur.pointer &lt; uint(len(source)) </span><span class="cov0" title="0">{
+                value = append(value, strings.ToLower(string(source[cur.pointer]))...)
+                cur.pointer++
+
+        match:
+                for i, option := range options </span><span class="cov0" title="0">{
+                        for _, skip := range skipList </span><span class="cov0" title="0">{
+                                if i == skip </span><span class="cov0" title="0">{
+                                        continue match</span>
+                                }
+                        }
+
+                        <span class="cov0" title="0">if option == string(value) </span><span class="cov0" title="0">{
+                                skipList = append(skipList, i)
+                                if len(option) &gt; len(match) </span><span class="cov0" title="0">{
+                                        match = option
+                                }</span>
+
+                                <span class="cov0" title="0">continue</span>
+                        }
+
+                        <span class="cov0" title="0">sharesPrefix := string(value) == option[:cur.pointer-ic.pointer]
+                        tooLong := len(value) &gt; len(option)
+                        if tooLong || !sharesPrefix </span><span class="cov0" title="0">{
+                                skipList = append(skipList, i)
+                        }</span>
+                }
+
+                <span class="cov0" title="0">if len(skipList) == len(options) </span><span class="cov0" title="0">{
+                        break</span>
+                }
+        }
+
+        <span class="cov0" title="0">return match</span>
+}
+
+func lexIdentifier(source string, ic cursor) (*Token, cursor, bool) <span class="cov0" title="0">{
+        if token, newCursor, ok := lexCharacterDelimited(source, ic, '"'); ok </span><span class="cov0" title="0">{
+                return token, newCursor, true
+        }</span>
+
+        <span class="cov0" title="0">cur := ic
+
+        c := source[cur.pointer]
+        isAlphabetical := (c &gt;= 'A' &amp;&amp; c &lt;= 'Z') || (c &gt;= 'a' &amp;&amp; c &lt;= 'z')
+        if !isAlphabetical </span><span class="cov0" title="0">{
+                return nil, ic, false
+        }</span>
+        <span class="cov0" title="0">cur.pointer++
+        cur.loc.Col++
+
+        value := []byte{c}
+        for ; cur.pointer &lt; uint(len(source)); cur.pointer++ </span><span class="cov0" title="0">{
+                c = source[cur.pointer]
+
+                isAlphabetical := (c &gt;= 'A' &amp;&amp; c &lt;= 'Z') || (c &gt;= 'a' &amp;&amp; c &lt;= 'z')
+                isNumeric := c &gt;= '0' &amp;&amp; c &lt;= '9'
+                if isAlphabetical || isNumeric || c == '$' || c == '_' || c == '/' </span><span class="cov0" title="0">{
+                        value = append(value, c)
+                        cur.loc.Col++
+                        continue</span>
+                }
+
+                <span class="cov0" title="0">break</span>
+        }
+
+        <span class="cov0" title="0">if len(value) == 0 </span><span class="cov0" title="0">{
+                return nil, ic, false
+        }</span>
+
+        <span class="cov0" title="0">return &amp;Token{
+                Value: strings.ToLower(string(value)),
+                Loc:   ic.loc,
+                Kind:  IdentifierKind,
+        }, cur, true</span>
+}
+</pre>
+		
+		<pre class="file" id="file1" style="display: none">package parsing
+
+import (
+        "fmt"
+)
+
+type Location struct {
+        Line uint
+        Col  uint
+}
+
+type Token struct {
+        Value string
+        Kind  TokenKind
+        Loc   Location
+}
+
+type SelectStatement struct {
+        Item       []*Expression
+        From       Token
+        Where      []interface{}
+        IsAllItems bool
+}
+
+type Expression struct {
+        Literal *Token
+}
+
+//for where
+type Conditions struct {
+        Literal   Token
+        Operation Token
+        Value     Token
+}
+
+//for where
+type Predicate struct {
+        Predicate Token
+}
+
+func (t *Token) equals(other *Token) bool <span class="cov0" title="0">{
+        return t.Value == other.Value &amp;&amp; t.Kind == other.Kind
+}</span>
+
+func (p *Parser) expectToken(cursor uint, t Token) bool <span class="cov0" title="0">{
+        if cursor &gt;= uint(len(p.tokens)) </span><span class="cov0" title="0">{
+                return false
+        }</span>
+
+        <span class="cov0" title="0">return t.equals(p.tokens[cursor])</span>
+}
+
+func (p *Parser) tokenFromKeyword(k Keyword) Token <span class="cov0" title="0">{
+        return Token{
+                Kind:  KeywordKind,
+                Value: string(k),
+        }
+}</span>
+
+func (p *Parser) helpMessage(cursor uint, msg string) error <span class="cov0" title="0">{
+        var c *Token
+        if cursor &lt; uint(len(p.tokens)) </span><span class="cov0" title="0">{
+                c = p.tokens[cursor]
+        }</span> else<span class="cov0" title="0"> {
+                c = p.tokens[cursor-1]
+        }</span>
+
+        <span class="cov0" title="0">return fmt.Errorf("[%d,%d]: %s, got: %s", c.Loc.Line, c.Loc.Col, msg, c.Value)</span>
+}
+
+func (p *Parser) parseSelectStatement(initialCursor uint, delimiter Token) (*SelectStatement, uint, bool, error) <span class="cov0" title="0">{
+        cursor := initialCursor
+        if !p.expectToken(cursor, p.tokenFromKeyword(SelectKeyword)) </span><span class="cov0" title="0">{
+                return nil, initialCursor, false, nil
+        }</span>
+        <span class="cov0" title="0">cursor++
+
+        slct := SelectStatement{}
+
+        exps, newCursor, ok, isAllItems, err := p.parseExpressions(cursor, []Token{p.tokenFromKeyword(FromKeyword), delimiter})
+        if !ok </span><span class="cov0" title="0">{
+                return nil, initialCursor, false, err
+        }</span>
+
+        <span class="cov0" title="0">if isAllItems </span><span class="cov0" title="0">{
+                slct.IsAllItems = isAllItems
+        }</span> else<span class="cov0" title="0"> {
+                slct.Item = *exps
+        }</span>
+
+        <span class="cov0" title="0">cursor = newCursor
+
+        if p.expectToken(cursor, p.tokenFromKeyword(FromKeyword)) </span><span class="cov0" title="0">{
+                cursor++
+
+                from, newCursor, ok := p.parseToken(cursor, IdentifierKind)
+                if !ok </span><span class="cov0" title="0">{
+                        err := p.helpMessage(cursor, "Expected FROM token")
+                        return nil, initialCursor, false, err
+                }</span>
+
+                <span class="cov0" title="0">slct.From = *from
+                cursor = newCursor</span>
+        }
+
+        //for where
+        <span class="cov0" title="0">where, newCursor, ok := p.parseWhere(cursor, p.tokenFromSymbol(semicolonSymbol))
+        if !ok </span><span class="cov0" title="0">{
+                return nil, initialCursor, false, nil
+        }</span>
+
+        <span class="cov0" title="0">slct.Where = *where
+        cursor = newCursor
+
+        return &amp;slct, cursor, true, nil</span>
+}
+
+func (p *Parser) parseToken(initialCursor uint, kind TokenKind) (*Token, uint, bool) <span class="cov0" title="0">{
+        cursor := initialCursor
+
+        if cursor &gt;= uint(len(p.tokens)) </span><span class="cov0" title="0">{
+                return nil, initialCursor, false
+        }</span>
+
+        <span class="cov0" title="0">current := p.tokens[cursor]
+        if current.Kind == kind </span><span class="cov0" title="0">{
+                return current, cursor + 1, true
+        }</span>
+
+        <span class="cov0" title="0">return nil, initialCursor, false</span>
+}
+
+func (p *Parser) tokenFromSymbol(s symbol) Token <span class="cov0" title="0">{
+        return Token{
+                Kind:  SymbolKind,
+                Value: string(s),
+        }
+}</span>
+
+func (p *Parser) parseWhere(initialCursor uint, delimiter Token) (*[]interface{}, uint, bool) <span class="cov0" title="0">{
+        cursor := initialCursor
+
+        where := make([]interface{}, 0)
+        i := 0
+        conditions := Conditions{}
+        kinds := []TokenKind{KeywordKind, IdentifierKind, NumericKind, StringKind, OperationKind}
+outer:
+        for </span><span class="cov0" title="0">{
+                if cursor &gt;= uint(len(p.tokens)) </span><span class="cov0" title="0">{
+                        return nil, initialCursor, false
+                }</span>
+
+                // Look for delimiter
+                <span class="cov0" title="0">current := p.tokens[cursor]
+                if delimiter.equals(current) </span><span class="cov0" title="0">{
+                        break outer</span>
+                }
+
+                <span class="cov0" title="0">for _, kind := range kinds </span><span class="cov0" title="0">{
+                        t, newCursor, ok := p.parseToken(cursor, kind)
+                        if ok </span><span class="cov0" title="0">{
+                                if kind == KeywordKind </span><span class="cov0" title="0">{
+                                        if Keyword(t.Value) != WhereKeyword </span><span class="cov0" title="0">{
+                                                p := Predicate{
+                                                        Predicate: *t,
+                                                }
+                                                where = append(where, p)
+                                        }</span>
+                                } else<span class="cov0" title="0"> {
+                                        if i == 0 </span><span class="cov0" title="0">{
+                                                conditions.Literal = *t
+                                                i++
+                                        }</span> else<span class="cov0" title="0"> if i == 1 </span><span class="cov0" title="0">{
+                                                conditions.Operation = *t
+                                                i++
+                                        }</span> else<span class="cov0" title="0"> {
+                                                conditions.Value = *t
+
+                                                where = append(where, conditions)
+                                                i = 0
+                                                cursor = newCursor
+                                                continue</span>
+                                        }
+                                }
+                                <span class="cov0" title="0">cursor = newCursor</span>
+                        }
+                }
+        }
+        <span class="cov0" title="0">return &amp;where, cursor, true</span>
+}
+
+func (p *Parser) parseExpressions(initialCursor uint, delimiters []Token) (*[]*Expression, uint, bool, bool, error) <span class="cov0" title="0">{
+        cursor := initialCursor
+
+        isAllItems := false
+
+        exps := []*Expression{}
+outer:
+        for </span><span class="cov0" title="0">{
+                if cursor &gt;= uint(len(p.tokens)) </span><span class="cov0" title="0">{
+                        return nil, initialCursor, false, isAllItems, nil
+                }</span>
+
+                <span class="cov0" title="0">current := p.tokens[cursor]
+                if current.Kind == SymbolKind </span><span class="cov0" title="0">{
+                        if current.Value == string(allFields) </span><span class="cov0" title="0">{
+                                isAllItems = true
+                                cursor++
+                                return &amp;exps, cursor, true, isAllItems, nil
+                        }</span>
+                }
+
+                // Look for delimiter
+                <span class="cov0" title="0">for _, delimiter := range delimiters </span><span class="cov0" title="0">{
+                        if delimiter.equals(current) </span><span class="cov0" title="0">{
+                                break outer</span>
+                        }
+                }
+
+                // Look for comma
+                <span class="cov0" title="0">if len(exps) &gt; 0 </span><span class="cov0" title="0">{
+                        if !p.expectToken(cursor, p.tokenFromSymbol(commaSymbol)) </span><span class="cov0" title="0">{
+                                err := p.helpMessage(cursor, "Expected comma")
+                                return nil, initialCursor, false, isAllItems, err
+                        }</span>
+
+                        <span class="cov0" title="0">cursor++</span>
+                }
+
+                // Look for expression
+                <span class="cov0" title="0">exp, newCursor, ok := p.parseExpression(cursor, p.tokenFromSymbol(commaSymbol))
+                if !ok </span><span class="cov0" title="0">{
+                        err := p.helpMessage(cursor, "Expected expression")
+                        return nil, initialCursor, false, isAllItems, err
+                }</span>
+                <span class="cov0" title="0">cursor = newCursor
+
+                exps = append(exps, exp)</span>
+        }
+
+        <span class="cov0" title="0">return &amp;exps, cursor, true, isAllItems, nil</span>
+}
+
+func (p *Parser) parseExpression(initialCursor uint, _ Token) (*Expression, uint, bool) <span class="cov0" title="0">{
+        cursor := initialCursor
+
+        kinds := []TokenKind{IdentifierKind, NumericKind, StringKind}
+        for _, kind := range kinds </span><span class="cov0" title="0">{
+                t, newCursor, ok := p.parseToken(cursor, kind)
+                if ok </span><span class="cov0" title="0">{
+                        return &amp;Expression{
+                                Literal: t,
+                        }, newCursor, true
+                }</span>
+        }
+
+        <span class="cov0" title="0">return nil, initialCursor, false</span>
+}
+
+func (p *Parser) Parse(source string) (*SelectStatement, error) <span class="cov0" title="0">{
+        var err error
+        p.tokens, err = lex(source)
+        if err != nil </span><span class="cov0" title="0">{
+                return nil, err
+        }</span>
+
+        <span class="cov0" title="0">cursor := uint(0)
+        stmt, newCursor, ok, err := p.parseSelect(cursor)
+        if !ok </span><span class="cov0" title="0">{
+                er := p.helpMessage(cursor, "Expected statement")
+                return nil, fmt.Errorf("messageError: %v, messageErrorParseSelect: %v", er, err)
+        }</span>
+        <span class="cov0" title="0">cursor = newCursor
+
+        atLeastOneSemicolon := false
+        for p.expectToken(cursor, p.tokenFromSymbol(semicolonSymbol)) </span><span class="cov0" title="0">{
+                cursor++
+                atLeastOneSemicolon = true
+        }</span>
+
+        <span class="cov0" title="0">if !atLeastOneSemicolon </span><span class="cov0" title="0">{
+                err := p.helpMessage(cursor, "Expected semi-colon delimiter between statements")
+                return nil, err
+        }</span>
+
+        <span class="cov0" title="0">return stmt, nil</span>
+}
+
+func (p *Parser) parseSelect(initialCursor uint) (*SelectStatement, uint, bool, error) <span class="cov0" title="0">{
+        cursor := initialCursor
+
+        semicolonToken := p.tokenFromSymbol(semicolonSymbol)
+        slct, newCursor, ok, err := p.parseSelectStatement(cursor, semicolonToken)
+        if ok </span><span class="cov0" title="0">{
+                return slct, newCursor, true, err
+        }</span>
+
+        <span class="cov0" title="0">return nil, initialCursor, false, nil</span>
+}
+
+type Parser struct {
+        tokens []*Token
+}
+
+func NewParser() Parser <span class="cov0" title="0">{
+        return Parser{}
+}</span>
+</pre>
+		
+		<pre class="file" id="file2" style="display: none">package sending
+
+import (
+        "regexp"
+        "strings"
+)
+
+type CsvModel struct {
+        columnsName []string
+        data        [][]string
+}
+
+func (c *CsvModel) FindColumnNameFromCsv(name string) bool <span class="cov7" title="8">{
+        for _, val := range c.columnsName </span><span class="cov10" title="21">{
+                if val == name </span><span class="cov6" title="7">{
+                        return true
+                }</span>
+        }
+
+        <span class="cov1" title="1">return false</span>
+}
+
+func (c *CsvModel) GetIdxColumnName(name string) int <span class="cov0" title="0">{
+        for idx := range c.columnsName </span><span class="cov0" title="0">{
+                if c.columnsName[idx] == name </span><span class="cov0" title="0">{
+                        return idx
+                }</span>
+        }
+
+        <span class="cov0" title="0">return -1</span>
+}
+
+func (c *CsvModel) checkOnInt() error <span class="cov0" title="0">{
+        for idx, str := range c.data </span><span class="cov0" title="0">{
+                for idxStr, val := range str </span><span class="cov0" title="0">{
+                        ok, err := regexp.MatchString("\\d+[.]\\d+", val)
+                        if err != nil </span><span class="cov0" title="0">{
+                                return err
+                        }</span>
+                        <span class="cov0" title="0">if ok </span><span class="cov0" title="0">{
+                                values := strings.Split(val, ".")
+
+                                if values[1] == "0" </span><span class="cov0" title="0">{
+                                        c.data[idx][idxStr] = values[0]
+                                }</span>
+                        }
+                }
+        }
+
+        <span class="cov0" title="0">return nil</span>
+}
+</pre>
+		
+		<pre class="file" id="file3" style="display: none">package sending
+
+import (
+        "course_project/pkg/parsing"
+        "encoding/csv"
+        "fmt"
+        "os"
+        "strconv"
+        "strings"
+)
+
+type CsvParser struct {
+        csvFilePath string
+        tableName   string
+        csvModel    *CsvModel
+}
+
+func New(csv string) (*CsvParser, error) <span class="cov0" title="0">{
+        i := strings.LastIndex(csv, ".csv")
+        tableName := csv[:i]
+
+        c := &amp;CsvParser{csvFilePath: csv, csvModel: &amp;CsvModel{}, tableName: tableName}
+        if err := c.initCsvModel(); err != nil </span><span class="cov0" title="0">{
+                return c, err
+        }</span>
+
+        <span class="cov0" title="0">return c, nil</span>
+}
+
+func (c *CsvParser) initCsvModel() error <span class="cov0" title="0">{
+        f, err := os.Open(c.csvFilePath)
+
+        if err != nil </span><span class="cov0" title="0">{
+                return err
+        }</span>
+
+        <span class="cov0" title="0">defer f.Close()
+
+        r := csv.NewReader(f)
+
+        if c.csvModel.columnsName, err = r.Read(); err != nil </span><span class="cov0" title="0">{
+                return err
+        }</span>
+
+        <span class="cov0" title="0">c.csvModel.data, err = r.ReadAll()
+
+        if err != nil </span><span class="cov0" title="0">{
+                return err
+        }</span>
+
+        <span class="cov0" title="0">for idx := range c.csvModel.columnsName </span><span class="cov0" title="0">{
+                c.csvModel.columnsName[idx] = strings.ToLower(c.csvModel.columnsName[idx])
+        }</span>
+
+        <span class="cov0" title="0">return nil</span>
+}
+
+func (c *CsvParser) SendRequest(request *parsing.SelectStatement) ([][]string, error) <span class="cov0" title="0">{
+        if !request.IsAllItems </span><span class="cov0" title="0">{
+                if val, ok := c.checkExistingColumnName(request); !ok </span><span class="cov0" title="0">{
+                        return [][]string{}, fmt.Errorf("no such column name '%s' in csv", val)
+                }</span>
+        }
+
+        <span class="cov0" title="0">err := c.csvModel.checkOnInt()
+        if err != nil </span><span class="cov0" title="0">{
+                return [][]string{}, err
+        }</span>
+        <span class="cov0" title="0">res, err := c.request(request)
+
+        if err != nil </span><span class="cov0" title="0">{
+                return res, err
+        }</span>
+
+        <span class="cov0" title="0">return res, nil</span>
+}
+
+func (c *CsvParser) checkExistingColumnName(request *parsing.SelectStatement) (string, bool) <span class="cov5" title="2">{
+        for idx := range request.Item </span><span class="cov10" title="4">{
+                item := request.Item[idx]
+
+                if !c.csvModel.FindColumnNameFromCsv(item.Literal.Value) </span><span class="cov0" title="0">{
+                        return item.Literal.Value, false
+                }</span>
+        }
+
+        <span class="cov5" title="2">for _, val := range request.Where </span><span class="cov10" title="4">{
+                item, ok := val.(parsing.Conditions)
+                if ok </span><span class="cov10" title="4">{
+                        if !c.csvModel.FindColumnNameFromCsv(item.Literal.Value) </span><span class="cov1" title="1">{
+                                return item.Literal.Value, false
+                        }</span>
+                }
+        }
+
+        <span class="cov1" title="1">return "", true</span>
+}
+
+//gocyclo:ignore
+func (c *CsvParser) request(request *parsing.SelectStatement) ([][]string, error) <span class="cov0" title="0">{
+        var columnInput []int
+        var resultData [][]string
+
+        if request.From.Value != c.tableName </span><span class="cov0" title="0">{
+                return resultData, fmt.Errorf("can`t find csv with name '%s'", request.From.Value)
+        }</span>
+
+        <span class="cov0" title="0">if !request.IsAllItems </span><span class="cov0" title="0">{
+                var col []string
+                for idx := range request.Item </span><span class="cov0" title="0">{
+                        item := request.Item[idx]
+
+                        columnInput = append(columnInput, c.csvModel.GetIdxColumnName(item.Literal.Value))
+                        col = append(col, item.Literal.Value)
+                }</span>
+
+                <span class="cov0" title="0">resultData = append(resultData, col)</span>
+        }
+
+        <span class="cov0" title="0">for _, str := range c.csvModel.data </span><span class="cov0" title="0">{
+                isAdd := false
+                isAndPredicate := false
+                isOrPredicate := false
+
+                for idx := range request.Where </span><span class="cov0" title="0">{
+                        item := request.Where[idx]
+
+                        if idx%2 == 0 </span><span class="cov0" title="0">{
+                                val, ok := item.(parsing.Conditions)
+
+                                if !ok </span><span class="cov0" title="0">{
+                                        return resultData, fmt.Errorf("incorrect expression 'where' format")
+                                }</span>
+
+                                <span class="cov0" title="0">idxColumn := c.csvModel.GetIdxColumnName(val.Literal.Value)
+                                if idxColumn == -1 </span><span class="cov0" title="0">{
+                                        return resultData, fmt.Errorf("")
+                                }</span>
+
+                                <span class="cov0" title="0">ok, err := c.isConditionOperation(str[idxColumn], val.Operation, val.Value)
+
+                                if err != nil </span><span class="cov0" title="0">{
+                                        return resultData, err
+                                }</span>
+
+                                <span class="cov0" title="0">if ok </span><span class="cov0" title="0">{
+                                        if idx != 0 </span><span class="cov0" title="0">{
+                                                if isAndPredicate </span><span class="cov0" title="0">{
+                                                        if !isAdd </span><span class="cov0" title="0">{
+                                                                isAdd = false
+                                                                break</span>
+                                                        }
+                                                }
+                                        }
+
+                                        <span class="cov0" title="0">isAdd = true</span>
+                                } else<span class="cov0" title="0"> {
+                                        isAdd = false
+
+                                        if isAndPredicate </span><span class="cov0" title="0">{
+                                                break</span>
+                                        }
+                                }
+                        } else<span class="cov0" title="0"> {
+                                val, ok := item.(parsing.Predicate)
+
+                                if !ok </span><span class="cov0" title="0">{
+                                        return resultData, fmt.Errorf("incorrect expression 'where' format")
+                                }</span>
+
+                                <span class="cov0" title="0">if val.Predicate.Value == string(parsing.AndKeyword) </span><span class="cov0" title="0">{
+                                        if idx != 1 &amp;&amp; isOrPredicate </span><span class="cov0" title="0">{
+                                                return resultData, fmt.Errorf("cannot combine AND/OR")
+                                        }</span>
+
+                                        <span class="cov0" title="0">isAndPredicate = true</span>
+                                } else<span class="cov0" title="0"> if val.Predicate.Value == string(parsing.OrKeyword) </span><span class="cov0" title="0">{
+                                        if idx != 1 &amp;&amp; isAndPredicate </span><span class="cov0" title="0">{
+                                                return resultData, fmt.Errorf("cannot combine AND/OR")
+                                        }</span>
+
+                                        <span class="cov0" title="0">isOrPredicate = true</span>
+                                }
+                        }
+                }
+
+                <span class="cov0" title="0">if isAdd || len(request.Where) == 0 </span><span class="cov0" title="0">{
+                        if !request.IsAllItems </span><span class="cov0" title="0">{
+                                var strInput []string
+                                for _, idx := range columnInput </span><span class="cov0" title="0">{
+                                        strInput = append(strInput, str[idx])
+                                }</span>
+
+                                <span class="cov0" title="0">resultData = append(resultData, strInput)</span>
+                        } else<span class="cov0" title="0"> {
+                                resultData = append(resultData, str)
+                        }</span>
+                }
+        }
+
+        <span class="cov0" title="0">return resultData, nil</span>
+}
+
+//написать тест
+//gocyclo:ignore
+func (c *CsvParser) isConditionOperation(data string, operation parsing.Token, value parsing.Token) (bool, error) <span class="cov0" title="0">{
+        var dataInt, valueInt int
+        var isInt bool
+        var err error
+
+        if value.Kind == parsing.NumericKind </span><span class="cov0" title="0">{
+                dataInt, err = strconv.Atoi(data)
+                if err != nil </span><span class="cov0" title="0">{
+                        return false, fmt.Errorf("types do not match. data %s must be type int. %v", data, err)
+                }</span>
+                <span class="cov0" title="0">valueInt, err = strconv.Atoi(value.Value)
+                if err != nil </span><span class="cov0" title="0">{
+                        return false, err
+                }</span>
+                <span class="cov0" title="0">isInt = true</span>
+        }
+
+        <span class="cov0" title="0">switch parsing.Operation(operation.Value) </span>{
+        case parsing.EqualsOperation:<span class="cov0" title="0">
+                if isInt </span><span class="cov0" title="0">{
+                        if dataInt == valueInt </span><span class="cov0" title="0">{
+                                return true, nil
+                        }</span>
+                } else<span class="cov0" title="0"> {
+                        if data == value.Value </span><span class="cov0" title="0">{
+                                return true, nil
+                        }</span>
+                }
+        case parsing.LessEqualOperation:<span class="cov0" title="0">
+                if isInt </span><span class="cov0" title="0">{
+                        if dataInt &lt;= valueInt </span><span class="cov0" title="0">{
+                                return true, nil
+                        }</span>
+                } else<span class="cov0" title="0"> {
+                        if data &lt;= value.Value </span><span class="cov0" title="0">{
+                                return true, nil
+                        }</span>
+                }
+        case parsing.LessOperation:<span class="cov0" title="0">
+                if isInt </span><span class="cov0" title="0">{
+                        if dataInt &lt; valueInt </span><span class="cov0" title="0">{
+                                return true, nil
+                        }</span>
+                } else<span class="cov0" title="0"> {
+                        if data &lt; value.Value </span><span class="cov0" title="0">{
+                                return true, nil
+                        }</span>
+                }
+        case parsing.MoreEqualOperation:<span class="cov0" title="0">
+                if isInt </span><span class="cov0" title="0">{
+                        if dataInt &gt;= valueInt </span><span class="cov0" title="0">{
+                                return true, nil
+                        }</span>
+                } else<span class="cov0" title="0"> {
+                        if data &gt;= value.Value </span><span class="cov0" title="0">{
+                                return true, nil
+                        }</span>
+                }
+        case parsing.MoreOperation:<span class="cov0" title="0">
+                if isInt </span><span class="cov0" title="0">{
+                        if dataInt &gt; valueInt </span><span class="cov0" title="0">{
+                                return true, nil
+                        }</span>
+                } else<span class="cov0" title="0"> {
+                        if data &gt; value.Value </span><span class="cov0" title="0">{
+                                return true, nil
+                        }</span>
+                }
+        case parsing.NotEqualOperation:<span class="cov0" title="0">
+                if isInt </span><span class="cov0" title="0">{
+                        if dataInt != valueInt </span><span class="cov0" title="0">{
+                                return true, nil
+                        }</span>
+                } else<span class="cov0" title="0"> {
+                        if data != value.Value </span><span class="cov0" title="0">{
+                                return true, nil
+                        }</span>
+                }
+        default:<span class="cov0" title="0">
+                return false, fmt.Errorf("operation '%s' does not supported", operation.Value)</span>
+        }
+
+        <span class="cov0" title="0">return false, nil</span>
+}
+
+func (c *CsvParser) GetColumnNames() []string <span class="cov0" title="0">{
+        return c.csvModel.columnsName
+}</span>
+</pre>
+		
+		</div>
+	</body>
+	<script>
+	(function() {
+		var files = document.getElementById('files');
+		var visible;
+		files.addEventListener('change', onChange, false);
+		function select(part) {
+			if (visible)
+				visible.style.display = 'none';
+			visible = document.getElementById(part);
+			if (!visible)
+				return;
+			files.value = part;
+			visible.style.display = 'block';
+			location.hash = part;
+		}
+		function onChange() {
+			select(files.value);
+			window.scrollTo(0, 0);
+		}
+		if (location.hash != "") {
+			select(location.hash.substr(1));
+		}
+		if (!visible) {
+			select("file0");
+		}
+	})();
+	</script>
+</html>

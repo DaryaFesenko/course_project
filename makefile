@@ -7,6 +7,10 @@ HAS_IMPORTS := $(shell command -v goimports;)
 
 all: run
 
+check: bootstrap
+	@echo "+ $@"
+	@golangci-lint run
+
 lint: bootstrap
 	@echo "+ $@"
 	@golangci-lint run
@@ -32,8 +36,10 @@ endif
 ifndef HAS_IMPORTS
 	go get -u golang.org/x/tools/cmd/goimports
 endif
-	
 
+test: 
+	@go test -v -coverprofile cover.out ./...
+	
 .PHONY: all \
 	lint \
 	run \
