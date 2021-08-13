@@ -72,3 +72,16 @@ time: "13.08.2021 21:53:21", request: "select * from covid_19_data where deaths 
 "
 time: "13.08.2021 21:54:40", request: "select * from covid_19_data where deaths > 30 and recovered < 100;
 "
+time: "14.08.2021 00:53:38", request: "select * from covid_19_data where deaths > 100;
+"
+time: "14.08.2021 00:54:09", request: "select * from covid_19_data where death > 100;
+"
+time: "14.08.2021 00:56:37", request: "select * from covid_19_data wherdd;
+"
+time: "14.08.2021 00:57:28", request: "select * from covid_19_datadd where deaths > 0;
+"
+time: "14.08.2021 00:58:11", request: "select * from covid_19_data where deaths > 100;
+" 
+time: "14.08.2021 01:00:29", request: " select * from covid_19_data where deaths > 100;
+ " 
+time: "14.08.2021 01:04:38", request: " select * from covid_19_data where deaths > 100 " 

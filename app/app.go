@@ -8,11 +8,11 @@ import (
 	"encoding/csv"
 	"errors"
 	"fmt"
-	"io/fs"
 	"io/ioutil"
 	"os"
 	"os/exec"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
@@ -98,7 +98,7 @@ func (a *App) LogAccess(request string) {
 func (a *App) LogError(err error) {
 	filePath := a.Config.GetFilePathErrorLog()
 
-	message := fmt.Sprintf("time: \"%s\", error: \"%s\"\n", time.Now().Format("02.01.2006 15:04:05"), err)
+	message := fmt.Sprintf("time: \"%s\", error: \"%s\" \n", time.Now().Format("02.01.2006 15:04:05"), err)
 	if err := a.writeToFile(filePath, message); err != nil {
 		log.Error(err)
 	}
@@ -111,7 +111,8 @@ func (a *App) writeToFile(filePath, message string) error {
 			return err
 		}
 
-		if _, err := file.WriteString(message); err != nil {
+		_, err = file.WriteString(message)
+		if err != nil {
 			return err
 		}
 	} else {
@@ -128,7 +129,7 @@ func (a *App) writeToFile(filePath, message string) error {
 
 		data = append(data, []byte(message)...)
 
-		err = ioutil.WriteFile(filePath, data, fs.ModeAppend)
+		err = ioutil.WriteFile(filePath, data, 0644)
 		if err != nil {
 			return err
 		}
@@ -195,6 +196,9 @@ func (a *App) getRequestFromClient() (string, error) {
 	if err != nil {
 		return request, err
 	}
+
+	i := strings.LastIndex(request, ";")
+	request = request[:i]
 	return request, nil
 }
 

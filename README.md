@@ -5,7 +5,7 @@
 
 Формат запроса, чтобы все сработало:
 
-    SELECT * (или поля через запятую) FROM имя_csv_файла WHERE column_name OP 'example' [AND/OR column_name OP 5];
+    SELECT * (или поля через запятую) FROM имя_csv_файла(без .csv) WHERE column_name OP 'example' [AND/OR column_name OP 5];
 
 
     - and и or комбинировать нельзя
