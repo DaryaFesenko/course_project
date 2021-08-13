@@ -7,7 +7,7 @@ HAS_IMPORTS := $(shell command -v goimports;)
 
 all: run
 
-check: bootstrap
+check:
 	@echo "+ $@"
 	@golangci-lint run
 

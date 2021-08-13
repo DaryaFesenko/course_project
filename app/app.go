@@ -23,6 +23,8 @@ const (
 	messageClient = "Введите запрос в формате:\n\n" +
 		"	'SELECT * (или поля через запятую) FROM имя_csv_файла WHERE column_name OP 'example' [AND/OR column_name OP 5]';\n\n" +
 		"В конце обязательно поставьте ';'\n\n "
+
+	modeAppend = 0644
 )
 
 type App struct {
@@ -129,7 +131,7 @@ func (a *App) writeToFile(filePath, message string) error {
 
 		data = append(data, []byte(message)...)
 
-		err = ioutil.WriteFile(filePath, data, 0644)
+		err = ioutil.WriteFile(filePath, data, modeAppend)
 		if err != nil {
 			return err
 		}
