@@ -7,7 +7,36 @@ import (
 	"gopkg.in/go-playground/assert.v1"
 )
 
-func CreateSelectStatement(item, conditionItem []string) parsing.SelectStatement {
+func TestSendRequestCheckColumnOK(t *testing.T) {
+	s := CsvParser{
+		csvModel: &CsvModel{
+			columnsName: []string{"test1", "test2", "test3", "test4"},
+		},
+	}
+
+	sel := CreateSelectStatementColumns([]string{"test1", "test2"}, []string{"test3", "test4"})
+
+	_, ok := s.checkExistingColumnName(&sel)
+
+	assert.Equal(t, ok, true)
+}
+
+func TestSendRequestCheckColumnFAIL(t *testing.T) {
+	s := CsvParser{
+		csvModel: &CsvModel{
+			columnsName: []string{"test1", "test2", "test3", "test5", "test6"},
+		},
+	}
+
+	sel := CreateSelectStatementColumns([]string{"test1", "test2"}, []string{"test3", "test4"})
+
+	_, ok := s.checkExistingColumnName(&sel)
+
+	assert.Equal(t, ok, false)
+}
+
+//block helpers
+func CreateSelectStatementColumns(item, conditionItem []string) parsing.SelectStatement {
 	sel := parsing.SelectStatement{}
 
 	for _, val := range item {
@@ -31,32 +60,4 @@ func CreateSelectStatement(item, conditionItem []string) parsing.SelectStatement
 	}
 
 	return sel
-}
-
-func TestSendRequestCheckColumnOK(t *testing.T) {
-	s := CsvParser{
-		csvModel: &CsvModel{
-			columnsName: []string{"test1", "test2", "test3", "test4"},
-		},
-	}
-
-	sel := CreateSelectStatement([]string{"test1", "test2"}, []string{"test3", "test4"})
-
-	_, ok := s.checkExistingColumnName(&sel)
-
-	assert.Equal(t, ok, true)
-}
-
-func TestSendRequestCheckColumnFAIL(t *testing.T) {
-	s := CsvParser{
-		csvModel: &CsvModel{
-			columnsName: []string{"test1", "test2", "test3", "test5", "test6"},
-		},
-	}
-
-	sel := CreateSelectStatement([]string{"test1", "test2"}, []string{"test3", "test4"})
-
-	_, ok := s.checkExistingColumnName(&sel)
-
-	assert.Equal(t, ok, false)
 }

@@ -65,13 +65,13 @@ func (p *Parser) helpMessage(cursor uint, msg string) error {
 		c = p.tokens[cursor-1]
 	}
 
-	return fmt.Errorf("[%d,%d]: %s, got: %s", c.Loc.Line, c.Loc.Col, msg, c.Value)
+	return fmt.Errorf("%s, got: %s", msg, c.Value)
 }
 
-func (p *Parser) parseSelectStatement(initialCursor uint, delimiter Token) (*SelectStatement, uint, bool, error) {
+func (p *Parser) parseSelectStatement(initialCursor uint, delimiter Token) (*SelectStatement, bool, error) {
 	cursor := initialCursor
 	if !p.expectToken(cursor, p.tokenFromKeyword(SelectKeyword)) {
-		return nil, initialCursor, false, nil
+		return nil, false, nil
 	}
 	cursor++
 
@@ -79,7 +79,7 @@ func (p *Parser) parseSelectStatement(initialCursor uint, delimiter Token) (*Sel
 
 	exps, newCursor, ok, isAllItems, err := p.parseExpressions(cursor, []Token{p.tokenFromKeyword(FromKeyword), delimiter})
 	if !ok {
-		return nil, initialCursor, false, err
+		return nil, false, err
 	}
 
 	if isAllItems {
@@ -96,7 +96,7 @@ func (p *Parser) parseSelectStatement(initialCursor uint, delimiter Token) (*Sel
 		from, newCursor, ok := p.parseToken(cursor, IdentifierKind)
 		if !ok {
 			err := p.helpMessage(cursor, "Expected FROM token")
-			return nil, initialCursor, false, err
+			return nil, false, err
 		}
 
 		slct.From = *from
@@ -104,15 +104,14 @@ func (p *Parser) parseSelectStatement(initialCursor uint, delimiter Token) (*Sel
 	}
 
 	//for where
-	where, newCursor, ok := p.parseWhere(cursor, p.tokenFromSymbol(semicolonSymbol))
+	where, ok := p.parseWhere(cursor, p.tokenFromSymbol(semicolonSymbol))
 	if !ok {
-		return nil, initialCursor, false, nil
+		return nil, false, nil
 	}
 
 	slct.Where = *where
-	cursor = newCursor
 
-	return &slct, cursor, true, nil
+	return &slct, true, nil
 }
 
 func (p *Parser) parseToken(initialCursor uint, kind TokenKind) (*Token, uint, bool) {
@@ -137,7 +136,7 @@ func (p *Parser) tokenFromSymbol(s symbol) Token {
 	}
 }
 
-func (p *Parser) parseWhere(initialCursor uint, delimiter Token) (*[]interface{}, uint, bool) {
+func (p *Parser) parseWhere(initialCursor uint, delimiter Token) (*[]interface{}, bool) {
 	cursor := initialCursor
 
 	where := make([]interface{}, 0)
@@ -147,7 +146,7 @@ func (p *Parser) parseWhere(initialCursor uint, delimiter Token) (*[]interface{}
 outer:
 	for {
 		if cursor >= uint(len(p.tokens)) {
-			return nil, initialCursor, false
+			return nil, false
 		}
 
 		// Look for delimiter
@@ -186,7 +185,7 @@ outer:
 			}
 		}
 	}
-	return &where, cursor, true
+	return &where, true
 }
 
 func (p *Parser) parseExpressions(initialCursor uint, delimiters []Token) (*[]*Expression, uint, bool, bool, error) {
@@ -265,37 +264,29 @@ func (p *Parser) Parse(source string) (*SelectStatement, error) {
 	}
 
 	cursor := uint(0)
-	stmt, newCursor, ok, err := p.parseSelect(cursor)
+	stmt, ok, err := p.parseSelect(cursor)
 	if !ok {
 		er := p.helpMessage(cursor, "Expected statement")
-		return nil, fmt.Errorf("messageError: %v, messageErrorParseSelect: %v", er, err)
-	}
-	cursor = newCursor
 
-	atLeastOneSemicolon := false
-	for p.expectToken(cursor, p.tokenFromSymbol(semicolonSymbol)) {
-		cursor++
-		atLeastOneSemicolon = true
-	}
-
-	if !atLeastOneSemicolon {
-		err := p.helpMessage(cursor, "Expected semi-colon delimiter between statements")
-		return nil, err
+		if err != nil {
+			return nil, fmt.Errorf("messageErrorParseSelect: %v", err)
+		}
+		return nil, fmt.Errorf("messageError: %v", er)
 	}
 
 	return stmt, nil
 }
 
-func (p *Parser) parseSelect(initialCursor uint) (*SelectStatement, uint, bool, error) {
+func (p *Parser) parseSelect(initialCursor uint) (*SelectStatement, bool, error) {
 	cursor := initialCursor
 
 	semicolonToken := p.tokenFromSymbol(semicolonSymbol)
-	slct, newCursor, ok, err := p.parseSelectStatement(cursor, semicolonToken)
+	slct, ok, err := p.parseSelectStatement(cursor, semicolonToken)
 	if ok {
-		return slct, newCursor, true, err
+		return slct, true, err
 	}
 
-	return nil, initialCursor, false, nil
+	return nil, false, err
 }
 
 type Parser struct {
