@@ -16,8 +16,10 @@ type CsvParser struct {
 }
 
 func New(csv string) (*CsvParser, error) {
-	i := strings.LastIndex(csv, ".csv")
-	tableName := csv[:i]
+	pathend := strings.LastIndex(csv, "/")
+	ext := strings.LastIndex(csv, ".csv")
+
+	tableName := csv[pathend+1 : ext]
 
 	c := &CsvParser{csvFilePath: csv, csvModel: &CsvModel{}, tableName: tableName}
 	if err := c.initCsvModel(); err != nil {
@@ -56,10 +58,8 @@ func (c *CsvParser) initCsvModel() error {
 }
 
 func (c *CsvParser) SendRequest(request *parsing.SelectStatement) ([][]string, error) {
-	if !request.IsAllItems {
-		if val, ok := c.checkExistingColumnName(request); !ok {
-			return [][]string{}, fmt.Errorf("no such column name '%s' in csv", val)
-		}
+	if val, ok := c.checkExistingColumnName(request); !ok {
+		return [][]string{}, fmt.Errorf("no such column name '%s' in csv", val)
 	}
 
 	err := c.csvModel.checkOnInt()
@@ -219,6 +219,8 @@ func (c *CsvParser) isConditionOperation(data string, operation parsing.Token, v
 		}
 		isInt = true
 	}
+
+	data = strings.ToLower(data)
 
 	switch parsing.Operation(operation.Value) {
 	case parsing.EqualsOperation:

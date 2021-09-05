@@ -14,3 +14,14 @@
     - имена колонок можно писать маленькими/большими буквами
     - работает только со строками и целыми числами
     - в конце строки обязательно ';'
+
+
+Примеры запросов:
+  - Файл covid_19_data
+      SELECT * FROM covid_19_data WHERE Country/Region=Canada;
+      SELECT ObservationDate, Confirmed FROM covid_19_data WHERE Country/Region != Canada;
+      SELECT * FROM covid_19_data WHERE Country/Region != Canada AND Deaths > 30;
+    
+  - Файл bum24fullexport
+      SELECT * FROM business WHERE Magnitude >= 7 OR STATUS = F;
+      SELECT status, units FROM business WHERE Suppressed != Y;

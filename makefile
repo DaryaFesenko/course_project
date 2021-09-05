@@ -1,5 +1,5 @@
-APP = hw2
-PROJECT = github.com/DaryaFesenko/best-practice/hw2
+APP = course_project
+PROJECT = github.com/DaryaFesenko/course_project
 STDERR=/tmp/.$(APP)-stderr.txt
 
 HAS_LINT := $(shell command -v golangci-lint;)
@@ -22,7 +22,6 @@ build: lint
 clean:
 	@echo "+ $@"
 	@rm -f ./${APP}
-	@rm -rf ./test/test_dir/copy
 
 bootstrap:
 	@echo "+ $@"

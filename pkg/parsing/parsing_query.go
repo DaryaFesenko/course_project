@@ -71,7 +71,7 @@ func (p *Parser) helpMessage(cursor uint, msg string) error {
 func (p *Parser) parseSelectStatement(initialCursor uint, delimiter Token) (*SelectStatement, bool, error) {
 	cursor := initialCursor
 	if !p.expectToken(cursor, p.tokenFromKeyword(SelectKeyword)) {
-		return nil, false, nil
+		return nil, false, fmt.Errorf("Expected SELECT statement")
 	}
 	cursor++
 
@@ -104,6 +104,11 @@ func (p *Parser) parseSelectStatement(initialCursor uint, delimiter Token) (*Sel
 	}
 
 	//for where
+	if !p.expectToken(cursor, p.tokenFromKeyword(WhereKeyword)) {
+		return nil, false, fmt.Errorf("expected WHERE")
+	}
+	cursor++
+
 	where, ok := p.parseWhere(cursor, p.tokenFromSymbol(semicolonSymbol))
 	if !ok {
 		return nil, false, nil

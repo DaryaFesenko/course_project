@@ -104,6 +104,8 @@ func (a *App) LogError(err error) {
 	if err := a.writeToFile(filePath, message); err != nil {
 		log.Error(err)
 	}
+
+	fmt.Println(message)
 }
 
 func (a *App) writeToFile(filePath, message string) error {
@@ -149,6 +151,7 @@ func (a *App) Run() {
 	go a.WatchSignals(cancel)
 
 	p := parsing.NewParser()
+
 	request, err := a.getRequestFromClient()
 	if err != nil {
 		a.LogError(err)
@@ -200,7 +203,11 @@ func (a *App) getRequestFromClient() (string, error) {
 	}
 
 	i := strings.LastIndex(request, ";")
-	request = request[:i]
+	if i == -1 {
+		return "", fmt.Errorf("expected ';'")
+	}
+
+	request = request[:i+1]
 	return request, nil
 }
 
