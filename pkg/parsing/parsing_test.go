@@ -50,7 +50,7 @@ func TestParseFAIL(t *testing.T) {
 		},
 		{
 			InRequest: "col1, col2 from table where col1 >= 6;",
-			Error:     fmt.Errorf("messageError: Expected statement, got: col1"),
+			Error:     fmt.Errorf("messageErrorParseSelect: Expected SELECT statement"),
 		},
 	}
 
