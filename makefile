@@ -33,7 +33,7 @@ ifndef HAS_IMPORTS
 endif
 
 test: 
-	@go test -v -coverprofile cover.out ./...
+	@go test -v -coverprofile ../cover.out ./...
 	
 .PHONY: all \
 	lint \
